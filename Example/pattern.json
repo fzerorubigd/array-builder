@@ -1,0 +1,17 @@
+{
+    "_meta" : {
+        "namespace" : "Some\\Namespace"
+    },
+    "example" : {
+        "value": "_string"
+    },
+    "type2": {
+        "field": "example",
+        "another": "_string",
+        "_any": true
+    },
+    "example_type": {
+        "text" : "_string",
+        "example_field": "example"
+    }
+}

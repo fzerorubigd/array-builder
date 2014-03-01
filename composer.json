@@ -1,0 +1,24 @@
+{
+    "name": "fzerorubigd/array-builder",
+    "description": "Array builder base on pattern with object",
+    "require-dev": {
+        "phpunit/phpunit": "@stable",
+        "nikic/php-parser": "@stable"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "fzerorubigd",
+            "email": "fzerorubigd@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+
+    },
+    "autoload": {
+        "psr-0": {
+            "Cybits\\ArrayBuilder\\": "src"
+        }
+    }
+}
