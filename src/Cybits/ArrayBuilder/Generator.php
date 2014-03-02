@@ -17,6 +17,8 @@ class Generator
 
     protected $classes = array();
 
+    protected $namespace;
+
     /**
      * Create new generator
      *
@@ -28,17 +30,16 @@ class Generator
 
         $this->types = array_keys($this->pattern);
 
-        $name = new \PHPParser_Node_Name(['cybits', 'boo', 'hoo']);
-        $this->classes[] = new \PHPParser_Node_Stmt_Namespace($name);
+        if (isset($pattern['_meta']) && isset($pattern['_meta']['namespace'])) {
+            $this->namespace = $pattern['_meta']['namespace'];
+        } else {
+            $this->namespace = null;
+        }
         foreach ($this->pattern as $type => $data) {
             if ($type{0} != '_') {
-                $this->classes[$type] = $this->buildClass($type, $data);
+                array_merge($this->classes[$type] = $this->buildClass($type, $data));
             }
         }
-
-
-        $pettyPrinter = new \PHPParser_PrettyPrinter_Default();
-        echo $pettyPrinter->prettyPrint($this->classes);
     }
 
     private function getSetterMethod($property, $type, $current)
@@ -46,7 +47,7 @@ class Generator
         if ($type{0} == '_') {
             $realType = substr($type, 1);
         } elseif (in_array($type, $this->types)) {
-            $realType = $this->camelize($type, '\\');
+            $realType = $this->getTypeFullName($type);
         } else {
             throw new \Exception("Invalid type $type");
         }
@@ -59,7 +60,7 @@ class Generator
         if ($type{0} == '_') {
             $realType = substr($type, 1);
         } elseif (in_array($type, $this->types)) {
-            $realType = $this->camelize($type, '\\');
+            $realType = $this->getTypeFullName($type);
         } else {
             throw new \Exception("Invalid type $type");
         }
@@ -69,11 +70,17 @@ class Generator
 
     public function buildClass($type, $data)
     {
+        $namespace = $this->namespace;
         $factory = new PHPParser_BuilderFactory();
-        $className = $this->camelize($type, '\\');
+        $fullClassName = explode('\\', $this->camelize($type, '\\'));
+
+        while (count($fullClassName) > 1) {
+            $namespace .= '\\' . array_shift($fullClassName);
+        }
+        $className = $fullClassName[0];
         $class = $factory
             ->class($className)
-            ->extend('\Cybits\ArrayLoader\Runtime');
+            ->extend('\Cybits\ArrayBuilder\Runtime');
 
         $validProperties = $factory->property('validProperties')
             ->makeProtected();
@@ -93,7 +100,7 @@ class Generator
         } else {
             $doc = new \PHPParser_Comment_Doc(
                 '/**' . PHP_EOL .
-                ' * @method static __Type__ create()' . PHP_EOL .
+                ' * @method static ' . $className . ' create()' . PHP_EOL .
                 ' */');
             $comments[] = $doc;
         }
@@ -117,7 +124,46 @@ class Generator
         $doc->setText($text);
         $realClass->setAttribute('comments', $comments);
 
-        return $realClass;
+        if ($namespace) {
+            $namespace = new \PHPParser_Node_Name($namespace);
+        }
+
+        return [new \PHPParser_Node_Stmt_Namespace($namespace), $realClass];
+    }
+
+    public function save($folder)
+    {
+        $prettyPrinter = new \PHPParser_PrettyPrinter_Default();
+        foreach ($this->classes as $type => $data) {
+            $folders = explode('\\', $this->camelize($type, '\\'));
+            while ($sub = array_shift($folders)) {
+                if (count($folders)) {
+                    $folder .= DIRECTORY_SEPARATOR. $sub;
+                    if (!is_dir($folder)) {
+                        mkdir($folder);
+                    }
+                } else {
+                    $result = $prettyPrinter->prettyPrint($data);
+                    file_put_contents($folder . DIRECTORY_SEPARATOR . $sub . '.php','<?php' . PHP_EOL . $result);
+                }
+            }
+        }
+    }
+
+    protected function getTypeFullName($type)
+    {
+        $namespace = $this->namespace;
+        $fullClassName = explode('\\', $this->camelize($type, '\\'));
+
+        while (count($fullClassName) > 1) {
+            $namespace .= '\\' . array_shift($fullClassName);
+        }
+        $className = $fullClassName[0];
+        if ($namespace{0} != '\\') {
+            $namespace = '\\' . $namespace;
+        }
+
+        return $namespace . '\\' . $className;
     }
 
     /**
