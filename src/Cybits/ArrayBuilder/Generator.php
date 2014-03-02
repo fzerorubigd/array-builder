@@ -42,33 +42,15 @@ class Generator
         }
     }
 
-    private function getSetterMethod($property, $type, $current)
-    {
-        if ($type{0} == '_') {
-            $realType = substr($type, 1);
-        } elseif (in_array($type, $this->types)) {
-            $realType = $this->getTypeFullName($type);
-        } else {
-            throw new \Exception("Invalid type $type");
-        }
-
-        return "@method $current set" . $this->camelize($property, '') . "($realType \$v)";
-    }
-
-    private function getGetterMethod($property, $type)
-    {
-        if ($type{0} == '_') {
-            $realType = substr($type, 1);
-        } elseif (in_array($type, $this->types)) {
-            $realType = $this->getTypeFullName($type);
-        } else {
-            throw new \Exception("Invalid type $type");
-        }
-
-        return "@method $realType get" . $this->camelize($property, '') . '()';
-    }
-
-    public function buildClass($type, $data)
+    /**
+     * Build a class base on type
+     *
+     * @param string $type the type
+     * @param array $data the type members and data
+     *
+     * @return array
+     */
+    protected function buildClass($type, $data)
     {
         $namespace = $this->namespace;
         $factory = new PHPParser_BuilderFactory();
@@ -131,41 +113,6 @@ class Generator
         return [new \PHPParser_Node_Stmt_Namespace($namespace), $realClass];
     }
 
-    public function save($folder)
-    {
-        $prettyPrinter = new \PHPParser_PrettyPrinter_Default();
-        foreach ($this->classes as $type => $data) {
-            $folders = explode('\\', $this->camelize($type, '\\'));
-            while ($sub = array_shift($folders)) {
-                if (count($folders)) {
-                    $folder .= DIRECTORY_SEPARATOR. $sub;
-                    if (!is_dir($folder)) {
-                        mkdir($folder);
-                    }
-                } else {
-                    $result = $prettyPrinter->prettyPrint($data);
-                    file_put_contents($folder . DIRECTORY_SEPARATOR . $sub . '.php','<?php' . PHP_EOL . $result);
-                }
-            }
-        }
-    }
-
-    protected function getTypeFullName($type)
-    {
-        $namespace = $this->namespace;
-        $fullClassName = explode('\\', $this->camelize($type, '\\'));
-
-        while (count($fullClassName) > 1) {
-            $namespace .= '\\' . array_shift($fullClassName);
-        }
-        $className = $fullClassName[0];
-        if ($namespace{0} != '\\') {
-            $namespace = '\\' . $namespace;
-        }
-
-        return $namespace . '\\' . $className;
-    }
-
     /**
      * Transforms an under_scored_string to a camelCasedOne
      *
@@ -190,5 +137,97 @@ class Generator
                 )
             )
         );
+    }
+
+    /**
+     * Get setter method document
+     *
+     * @param string $property the property
+     * @param string $type the type of property
+     * @param string $current the current class
+     *
+     * @return string
+     * @throws \Exception
+     */
+    private function getSetterMethod($property, $type, $current)
+    {
+        if ($type{0} == '_') {
+            $realType = substr($type, 1);
+        } elseif (in_array($type, $this->types)) {
+            $realType = $this->getTypeFullName($type);
+        } else {
+            throw new \Exception("Invalid type $type");
+        }
+
+        return "@method $current set" . $this->camelize($property, '') . "($realType \$v)";
+    }
+
+    /**
+     * get full name of a class base on type
+     *
+     * @param string $type the type string
+     *
+     * @return string
+     */
+    protected function getTypeFullName($type)
+    {
+        $namespace = $this->namespace;
+        $fullClassName = explode('\\', $this->camelize($type, '\\'));
+
+        while (count($fullClassName) > 1) {
+            $namespace .= '\\' . array_shift($fullClassName);
+        }
+        $className = $fullClassName[0];
+        if ($namespace{0} != '\\') {
+            $namespace = '\\' . $namespace;
+        }
+
+        return $namespace . '\\' . $className;
+    }
+
+    /**
+     * Get getter method document
+     *
+     * @param string $property the property
+     * @param string $type the type of property
+     *
+     * @return string
+     * @throws \Exception
+     */
+    private function getGetterMethod($property, $type)
+    {
+        if ($type{0} == '_') {
+            $realType = substr($type, 1);
+        } elseif (in_array($type, $this->types)) {
+            $realType = $this->getTypeFullName($type);
+        } else {
+            throw new \Exception("Invalid type $type");
+        }
+
+        return "@method $realType get" . $this->camelize($property, '') . '()';
+    }
+
+    /**
+     * Save all classes in psr0 classes
+     *
+     * @param string $folder the folder to save into
+     */
+    public function save($folder)
+    {
+        $prettyPrinter = new \PHPParser_PrettyPrinter_Default();
+        foreach ($this->classes as $type => $data) {
+            $folders = explode('\\', $this->camelize($type, '\\'));
+            while ($sub = array_shift($folders)) {
+                if (count($folders)) {
+                    $folder .= DIRECTORY_SEPARATOR . $sub;
+                    if (!is_dir($folder)) {
+                        mkdir($folder);
+                    }
+                } else {
+                    $result = $prettyPrinter->prettyPrint($data);
+                    file_put_contents($folder . DIRECTORY_SEPARATOR . $sub . '.php', '<?php' . PHP_EOL . $result);
+                }
+            }
+        }
     }
 }

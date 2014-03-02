@@ -7,12 +7,11 @@ namespace Cybits\ArrayBuilder;
  *
  * @package Cybits\ArrayBuilder
  */
-class Runtime
+class Runtime implements \JsonSerializable
 {
 
-    private $data = array();
-
     protected $validProperties = true;
+    private $data = array();
 
     protected function __construct()
     {
@@ -24,22 +23,6 @@ class Runtime
     public static function create()
     {
         return new self();
-    }
-
-    /**
-     * Get if the property is available
-     *
-     * @param string $property the property name
-     *
-     * @return bool
-     */
-    private function internalHasProperty($property)
-    {
-        if ($this->validProperties === true || isset($this->validProperties[$property])) {
-            return true;
-        }
-
-        return false;
     }
 
     /**
@@ -84,20 +67,19 @@ class Runtime
     }
 
     /**
-     * Get a key from array
+     * Get if the property is available
      *
-     * @param string $name the key
+     * @param string $property the property name
      *
-     * @throws \BadMethodCallException
-     * @return mixed
+     * @return bool
      */
-    public function get($name)
+    private function internalHasProperty($property)
     {
-        if ($this->internalHasProperty($name)) {
-            return isset($this->data[$name]) ? $this->data[$name] : null;
+        if ($this->validProperties === true || isset($this->validProperties[$property])) {
+            return true;
         }
 
-        throw new \BadMethodCallException("Invalid property $name");
+        return false;
     }
 
     /**
@@ -124,5 +106,53 @@ class Runtime
                 )
             )
         );
+    }
+
+    /**
+     * Get a key from array
+     *
+     * @param string $name the key
+     *
+     * @throws \BadMethodCallException
+     * @return mixed
+     */
+    public function get($name)
+    {
+        if ($this->internalHasProperty($name)) {
+            return isset($this->data[$name]) ? $this->data[$name] : null;
+        }
+
+        throw new \BadMethodCallException("Invalid property $name");
+    }
+
+    /**
+     * (PHP 5 &gt;= 5.4.0)<br/>
+     * Specify data which should be serialized to JSON
+     *
+     * @link http://php.net/manual/en/jsonserializable.jsonserialize.php
+     * @return mixed data which can be serialized by <b>json_encode</b>,
+     *       which is a value of any type other than a resource.
+     */
+    public function jsonSerialize()
+    {
+        return $this->toArray();
+    }
+
+    /**
+     * Export current object to real array
+     *
+     * @return array
+     */
+    public function toArray()
+    {
+        $result = $this->data;
+
+        foreach ($result as &$value) {
+            if ($value instanceof Runtime) {
+                $value = $value->toArray();
+            }
+        }
+
+        return $result;
     }
 }
