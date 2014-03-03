@@ -22,7 +22,7 @@ class Generator
     /**
      * Create new generator
      *
-     * @param array $pattern
+     * @param array $pattern the pattern to build data
      */
     public function __construct(array $pattern)
     {
@@ -46,7 +46,7 @@ class Generator
      * Build a class base on type
      *
      * @param string $type the type
-     * @param array $data the type members and data
+     * @param array  $data the type members and data
      *
      * @return array
      */
@@ -54,12 +54,8 @@ class Generator
     {
         $namespace = $this->namespace;
         $factory = new PHPParser_BuilderFactory();
-        $fullClassName = explode('\\', $this->camelize($type, '\\'));
+        $className = $this->camelize($type);
 
-        while (count($fullClassName) > 1) {
-            $namespace .= '\\' . array_shift($fullClassName);
-        }
-        $className = $fullClassName[0];
         $class = $factory
             ->class($className)
             ->extend('\Cybits\ArrayBuilder\Runtime');
@@ -83,7 +79,8 @@ class Generator
             $doc = new \PHPParser_Comment_Doc(
                 '/**' . PHP_EOL .
                 ' * @method static ' . $className . ' create()' . PHP_EOL .
-                ' */');
+                ' */'
+            );
             $comments[] = $doc;
         }
 
@@ -131,7 +128,8 @@ class Generator
                     array_map(
                         'strtolower',
                         explode(
-                            '_', $scored
+                            '_',
+                            $scored
                         )
                     )
                 )
@@ -143,8 +141,8 @@ class Generator
      * Get setter method document
      *
      * @param string $property the property
-     * @param string $type the type of property
-     * @param string $current the current class
+     * @param string $type     the type of property
+     * @param string $current  the current class
      *
      * @return string
      * @throws \Exception
@@ -172,12 +170,8 @@ class Generator
     protected function getTypeFullName($type)
     {
         $namespace = $this->namespace;
-        $fullClassName = explode('\\', $this->camelize($type, '\\'));
+        $className = $this->camelize($type);
 
-        while (count($fullClassName) > 1) {
-            $namespace .= '\\' . array_shift($fullClassName);
-        }
-        $className = $fullClassName[0];
         if ($namespace{0} != '\\') {
             $namespace = '\\' . $namespace;
         }
@@ -189,7 +183,7 @@ class Generator
      * Get getter method document
      *
      * @param string $property the property
-     * @param string $type the type of property
+     * @param string $type     the type of property
      *
      * @return string
      * @throws \Exception
@@ -216,18 +210,9 @@ class Generator
     {
         $prettyPrinter = new \PHPParser_PrettyPrinter_Default();
         foreach ($this->classes as $type => $data) {
-            $folders = explode('\\', $this->camelize($type, '\\'));
-            while ($sub = array_shift($folders)) {
-                if (count($folders)) {
-                    $folder .= DIRECTORY_SEPARATOR . $sub;
-                    if (!is_dir($folder)) {
-                        mkdir($folder);
-                    }
-                } else {
-                    $result = $prettyPrinter->prettyPrint($data);
-                    file_put_contents($folder . DIRECTORY_SEPARATOR . $sub . '.php', '<?php' . PHP_EOL . $result);
-                }
-            }
+            $fileName = $this->camelize($type);
+            $result = $prettyPrinter->prettyPrint($data);
+            file_put_contents($folder . DIRECTORY_SEPARATOR . $fileName . '.php', '<?php' . PHP_EOL . $result);
         }
     }
 }

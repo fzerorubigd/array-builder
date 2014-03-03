@@ -1,11 +1,18 @@
 {
     "_meta" : {
-        "namespace" : "Some\\Yo\\Hoo"
+        "namespace" : "Cybits\\Elasticsearch"
     },
-    "example" : {
-        "value": "_string"
+    "field" : {
+        "query": "_string",
+        "operator": "_string",
+        "zero_terms_query": "_string",
+        "cutoff_frequency": "_float",
+        "analyzer": "_string",
+        "max_expansions": "_int",
+        "lenient": "_boolean",
+        "type": "_string"
     },
-    "type2": {
+    "match": {
         "field": "example",
         "another": "_string",
         "_any": true

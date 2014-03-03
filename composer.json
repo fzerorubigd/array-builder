@@ -14,7 +14,7 @@
     ],
     "minimum-stability": "dev",
     "require": {
-
+        "symfony/console": "@stable"
     },
     "autoload": {
         "psr-0": {
