@@ -13,11 +13,16 @@ class Runtime implements \JsonSerializable
     protected $validProperties = true;
     private $data = array();
 
+    /**
+     * make constructor protected to force using the create method
+     */
     protected function __construct()
     {
     }
 
     /**
+     * Create new instance of this object
+     *
      * @return Runtime
      */
     public static function create()
@@ -41,6 +46,11 @@ class Runtime implements \JsonSerializable
             return $this->set($this->camelize(substr($name, 3)), array_shift($arguments));
         } elseif ($sign == 'get') {
             return $this->get($this->camelize(substr($name, 3)));
+        } elseif ($sign == 'add') {
+            $key = array_shift($arguments);
+            $value = array_shift($arguments);
+
+            return $this->add($this->camelize(substr($name, 3)), $key, $value);
         }
 
         throw new \BadMethodCallException("Invalid function $name");
@@ -57,7 +67,10 @@ class Runtime implements \JsonSerializable
      */
     public function set($name, $value)
     {
-        if ($this->internalHasProperty($name)) {
+        if ($type = $this->internalHasProperty($name)) {
+            if ($type == 'array' && !is_array($value) && null === $value) {
+                throw new \BadMethodCallException("The $name is an array");
+            }
             $this->data[$name] = $value;
 
             return $this;
@@ -76,7 +89,7 @@ class Runtime implements \JsonSerializable
     private function internalHasProperty($property)
     {
         if ($this->validProperties === true || isset($this->validProperties[$property])) {
-            return true;
+            return $this->validProperties[$property];
         }
 
         return false;
@@ -100,7 +113,8 @@ class Runtime implements \JsonSerializable
                     array_map(
                         'strtolower',
                         explode(
-                            '_', $scored
+                            '_',
+                            $scored
                         )
                     )
                 )
@@ -123,6 +137,37 @@ class Runtime implements \JsonSerializable
         }
 
         throw new \BadMethodCallException("Invalid property $name");
+    }
+
+    /**
+     * Add a key to array, if property is null then add it to self array
+     *
+     * @param string      $key      the array key
+     * @param string|null $property the array property
+     * @param mixed       $value    the value to set
+     *
+     * @throws \BadMethodCallException
+     * @return Runtime
+     */
+    public function add($key, $property, $value)
+    {
+        if (!isset($property)) {
+            return $this->set($key, $value);
+        }
+
+        if ($type = $this->internalHasProperty($property)) {
+            if ($type != 'array') {
+                throw new \BadMethodCallException("$property is not an array");
+            }
+
+            if (!isset($this->data[$property])) {
+                $this->data[$property] = array();
+            }
+
+            $this->data[$property][$key] = $value;
+        }
+
+        throw new \BadMethodCallException("Invalid property $property");
     }
 
     /**

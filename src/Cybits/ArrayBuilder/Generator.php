@@ -62,11 +62,7 @@ class Generator
 
         $validProperties = $factory->property('validProperties')
             ->makeProtected();
-        if (isset($data['_any'])) {
-            $validProperties->setDefault(true);
-        } else {
-            $validProperties->setDefault(array_keys($data));
-        }
+        $validProperties->setDefault($this->generateValidPropertyList($data));
 
         $class->addStmt($validProperties);
 
@@ -85,16 +81,39 @@ class Generator
         }
 
         $text = trim($doc->getText());
-        foreach ($data as $key => $value) {
-            if ($key{0} != '_') {
+        foreach ($data as $key => $type) {
+            if ($key{0} == '_') {
                 $text = str_replace(
                     '*/',
-                    '* ' . $this->getSetterMethod($key, $value, $className) . PHP_EOL . ' */',
+                    '* ' .
+                    $this->getSetterMethod(
+                        $key,
+                        $this->translateTypeToPhpType($key, true),
+                        $className
+                    ) . PHP_EOL . ' */',
                     $text
                 );
                 $text = str_replace(
                     '*/',
-                    '* ' . $this->getGetterMethod($key, $value) . PHP_EOL . ' */',
+                    '* ' .
+                    $this->getGetterMethod(
+                        $key,
+                        $this->translateTypeToPhpType($key, true)
+                    ) . PHP_EOL . ' */',
+                    $text
+                );
+            }
+            $matches = array();
+            if (preg_match('/^_array\[([^\]]*)\]$/', $type, $matches)) {
+                // We need add method to.
+                $text = str_replace(
+                    '*/',
+                    '* ' .
+                    $this->getAdderMethod(
+                        $key,
+                        $this->translateTypeToPhpType($matches[1], true),
+                        $className
+                    ) . PHP_EOL . ' */',
                     $text
                 );
             }
@@ -138,6 +157,62 @@ class Generator
     }
 
     /**
+     * Create valid type mapping for setting default value
+     *
+     * @param array $data data to create mapping
+     *
+     * @return array
+     */
+    private function generateValidPropertyList(array $data)
+    {
+        foreach ($data as &$value) {
+            $value = $this->translateTypeToPhpType($value);
+        }
+
+        return $data;
+    }
+
+    /**
+     * get the php type
+     *
+     * @param string $type     the json type
+     * @param bool   $document its for document? (so array are like string[] not array)
+     *
+     * @throws \Exception
+     * @return string type
+     */
+    protected function translateTypeToPhpType($type, $document = false)
+    {
+        $type = trim($type);
+        if ($type{0} == '_') {
+            //Internal type
+            $type = substr($type, 1);
+            $matches = array();
+            if (preg_match('/^array\[([^\]]*)\]$/', $type, $matches)) {
+                if (!$document) {
+                    $type = 'array';
+                } else {
+                    $type = $this->translateTypeToPhpType($matches[1]) . '[]';
+                }
+            }
+        } else {
+            if (in_array($type, $this->types)) {
+                $namespace = $this->namespace;
+                $className = $this->camelize($type);
+
+                if ($namespace{0} != '\\') {
+                    $namespace = '\\' . $namespace;
+                }
+
+                return $namespace . '\\' . $className;
+            }
+            throw new \Exception("Invalid type $type");
+        }
+
+        return $type;
+    }
+
+    /**
      * Get setter method document
      *
      * @param string $property the property
@@ -149,34 +224,9 @@ class Generator
      */
     private function getSetterMethod($property, $type, $current)
     {
-        if ($type{0} == '_') {
-            $realType = substr($type, 1);
-        } elseif (in_array($type, $this->types)) {
-            $realType = $this->getTypeFullName($type);
-        } else {
-            throw new \Exception("Invalid type $type");
-        }
+        $realType = $this->translateTypeToPhpType($type);
 
         return "@method $current set" . $this->camelize($property, '') . "($realType \$v)";
-    }
-
-    /**
-     * get full name of a class base on type
-     *
-     * @param string $type the type string
-     *
-     * @return string
-     */
-    protected function getTypeFullName($type)
-    {
-        $namespace = $this->namespace;
-        $className = $this->camelize($type);
-
-        if ($namespace{0} != '\\') {
-            $namespace = '\\' . $namespace;
-        }
-
-        return $namespace . '\\' . $className;
     }
 
     /**
@@ -190,15 +240,32 @@ class Generator
      */
     private function getGetterMethod($property, $type)
     {
-        if ($type{0} == '_') {
-            $realType = substr($type, 1);
-        } elseif (in_array($type, $this->types)) {
-            $realType = $this->getTypeFullName($type);
-        } else {
-            throw new \Exception("Invalid type $type");
-        }
+        $realType = $this->translateTypeToPhpType($type, true);
 
         return "@method $realType get" . $this->camelize($property, '') . '()';
+    }
+
+    /**
+     * Get adder method document
+     *
+     * @param string $property the property
+     * @param string $type     the type of property
+     * @param string $current  the current class
+     *
+     * @return string
+     * @throws \Exception
+     */
+    private function getAdderMethod($property, $type, $current)
+    {
+        $realType = $this->translateTypeToPhpType($type);
+        if ($property == '_any') {
+            // So this could add many property of this type
+            $funcName = $this->camelize($type);
+
+            return "@method $current add{$funcName}(string \$property, $realType \$v)";
+        }
+
+        return "@method $current add" . $this->camelize($property, '') . "(string \$property, $realType \$v)";
     }
 
     /**

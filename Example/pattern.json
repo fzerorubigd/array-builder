@@ -13,9 +13,7 @@
         "type": "_string"
     },
     "match": {
-        "field": "example",
-        "another": "_string",
-        "_any": true
+        "example": "_array[_string]"
     },
     "example_type": {
         "text" : "_string",
