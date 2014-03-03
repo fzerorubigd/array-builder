@@ -13,10 +13,11 @@
         "type": "_string"
     },
     "match": {
-        "example": "_array[_string]"
+        "_any": "_array[field]"
     },
     "example_type": {
         "text" : "_string",
-        "example_field": "example"
+        "example_field": "_array[_string]",
+        "_any" : "_array[_string]"
     }
 }

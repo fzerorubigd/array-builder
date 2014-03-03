@@ -82,13 +82,13 @@ class Generator
 
         $text = trim($doc->getText());
         foreach ($data as $key => $type) {
-            if ($key{0} == '_') {
+            if ($key{0} != '_') {
                 $text = str_replace(
                     '*/',
                     '* ' .
                     $this->getSetterMethod(
                         $key,
-                        $this->translateTypeToPhpType($key, true),
+                        $type,
                         $className
                     ) . PHP_EOL . ' */',
                     $text
@@ -98,7 +98,7 @@ class Generator
                     '* ' .
                     $this->getGetterMethod(
                         $key,
-                        $this->translateTypeToPhpType($key, true)
+                        $type
                     ) . PHP_EOL . ' */',
                     $text
                 );
@@ -111,7 +111,7 @@ class Generator
                     '* ' .
                     $this->getAdderMethod(
                         $key,
-                        $this->translateTypeToPhpType($matches[1], true),
+                        $matches[1],
                         $className
                     ) . PHP_EOL . ' */',
                     $text
@@ -224,6 +224,7 @@ class Generator
      */
     private function getSetterMethod($property, $type, $current)
     {
+        // The array notation seems to be not valid in arguments?!
         $realType = $this->translateTypeToPhpType($type);
 
         return "@method $current set" . $this->camelize($property, '') . "($realType \$v)";
@@ -257,7 +258,7 @@ class Generator
      */
     private function getAdderMethod($property, $type, $current)
     {
-        $realType = $this->translateTypeToPhpType($type);
+        $realType = $this->translateTypeToPhpType($type, true);
         if ($property == '_any') {
             // So this could add many property of this type
             $funcName = $this->camelize($type);
