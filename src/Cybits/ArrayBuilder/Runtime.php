@@ -10,7 +10,7 @@ namespace Cybits\ArrayBuilder;
 class Runtime implements \JsonSerializable
 {
 
-    protected $validProperties = true;
+    private $validProperties = true;
     private $data = array();
 
     /**
@@ -43,14 +43,19 @@ class Runtime implements \JsonSerializable
     {
         $sign = substr($name, 0, 3);
         if ($sign == 'set') {
-            return $this->set($this->camelize(substr($name, 3)), array_shift($arguments));
+            return $this->set($this->unCamelize(substr($name, 3)), array_shift($arguments));
         } elseif ($sign == 'get') {
-            return $this->get($this->camelize(substr($name, 3)));
+            return $this->get($this->unCamelize(substr($name, 3)));
         } elseif ($sign == 'add') {
             $key = array_shift($arguments);
             $value = array_shift($arguments);
 
-            return $this->add($this->camelize(substr($name, 3)), $key, $value);
+            if ($value === null) {
+                $value = $key;
+                $key = null;
+            }
+
+            return $this->add($this->unCamelize(substr($name, 3)), $key, $value);
         }
 
         throw new \BadMethodCallException("Invalid function $name");
@@ -88,35 +93,39 @@ class Runtime implements \JsonSerializable
      */
     private function internalHasProperty($property)
     {
-        if ($this->validProperties === true || isset($this->validProperties[$property])) {
-            return $this->validProperties[$property];
+        $valid = $this->getValidProperties();
+        if ($valid === true) {
+            return true;
+        }
+        if (isset($valid[$property])) {
+            return $valid[$property];
         }
 
         return false;
     }
 
     /**
-     * Transforms an under_scored_string to a camelCasedOne
+     * Get the default properties for current object
      *
-     * @param string $scored the_string
-     * @param string $glue   the glue
-     *
-     * @return string TheString
+     * @return bool|array
      */
-    protected function camelize($scored, $glue = '')
+    public function getValidProperties()
     {
-        return lcfirst(
-            implode(
-                $glue,
-                array_map(
-                    'ucfirst',
-                    array_map(
-                        'strtolower',
-                        explode(
-                            '_',
-                            $scored
-                        )
-                    )
+        return $this->validProperties;
+    }
+    /**
+     * Transforms a camelCasedString to an under_scored_one
+     */
+    function unCamelize($cameled, $glue = '_') {
+        return implode(
+            $glue,
+            array_map(
+                'strtolower',
+                preg_split(
+                    '/([A-Z]{1}[^A-Z]*)/',
+                    $cameled,
+                    -1,
+                    PREG_SPLIT_DELIM_CAPTURE|PREG_SPLIT_NO_EMPTY
                 )
             )
         );
@@ -151,20 +160,28 @@ class Runtime implements \JsonSerializable
      */
     public function add($key, $property, $value)
     {
-        if (!isset($property)) {
-            return $this->set($key, $value);
+        if (!isset($key)) {
+            return $this->set($property, $value);
         }
-
-        if ($type = $this->internalHasProperty($property)) {
+        $type = $this->internalHasProperty($property);
+        if (!$type) {
+            $type = $this->internalHasProperty('_any');
+        }
+        if ($type) {
             if ($type != 'array') {
                 throw new \BadMethodCallException("$property is not an array");
             }
 
-            if (!isset($this->data[$property])) {
-                $this->data[$property] = array();
+            if (!isset($this->data[$key])) {
+                $this->data[$key] = array();
             }
 
-            $this->data[$property][$key] = $value;
+            if ($property === null) {
+                $this->data[$key][] = $value;
+            } else {
+                $this->data[$key][$property] = $value;
+            }
+            return $this;
         }
 
         throw new \BadMethodCallException("Invalid property $property");
@@ -190,11 +207,26 @@ class Runtime implements \JsonSerializable
      */
     public function toArray()
     {
-        $result = $this->data;
+        return $this->iterateArray($this->data);
+    }
 
-        foreach ($result as &$value) {
+    /**
+     * Iterate over the internal array
+     *
+     * @param array $array
+     *
+     * @return array
+     */
+    private function iterateArray(array $array)
+    {
+        $result = array();
+        foreach ($array as $key => $value) {
             if ($value instanceof Runtime) {
-                $value = $value->toArray();
+                $result[$key] = $value->toArray();
+            } elseif (is_array($value)) {
+                $result[$key] = $this->iterateArray($value);
+            } else {
+                $result[$key] = $value;
             }
         }
 

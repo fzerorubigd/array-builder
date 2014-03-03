@@ -19,6 +19,8 @@ class Generator
 
     protected $namespace;
 
+    protected $template = array();
+
     /**
      * Create new generator
      *
@@ -26,6 +28,61 @@ class Generator
      */
     public function __construct(array $pattern)
     {
+
+        $this->template[0] = <<< 'EOT'
+<?php
+
+class TemplateString
+{
+    /**
+     * Get the default properties for current object
+     *
+     * @return bool|array
+     */
+    public function getValidProperties() {
+        return $this->validProperties;
+    }
+
+    /**
+     * Create new instance of this object
+     *
+     * @return __Class__
+     */
+    public static function create()
+    {
+        return new self();
+    }
+}
+EOT;
+
+        $this->template[1] = <<< 'EOT'
+<?php
+
+class TemplateString
+{
+    /**
+     * Get the default properties for current object
+     *
+     * @return bool|array
+     */
+    public function getValidProperties() {
+        $valid = parent::getValidProperties();
+
+        return array_merge($this->validProperties, $valid);
+    }
+
+    /**
+     * Create new instance of this object
+     *
+     * @return __Class__
+     */
+    public static function create()
+    {
+        return new self();
+    }
+}
+EOT;
+
         $this->pattern = $pattern;
 
         $this->types = array_keys($this->pattern);
@@ -56,16 +113,32 @@ class Generator
         $factory = new PHPParser_BuilderFactory();
         $className = $this->camelize($type);
 
+        if (isset($data['_parent'])) {
+            $parent = $this->translateTypeToPhpType($data['_parent']);
+            $templateId = 1;
+        } else {
+            $parent = '\Cybits\ArrayBuilder\Runtime';
+            $templateId = 0;
+        }
         $class = $factory
             ->class($className)
-            ->extend('\Cybits\ArrayBuilder\Runtime');
+            ->extend($parent);
 
         $validProperties = $factory->property('validProperties')
-            ->makeProtected();
+            ->makePrivate();
         $validProperties->setDefault($this->generateValidPropertyList($data));
 
         $class->addStmt($validProperties);
 
+
+        $template = new \PHPParser_Template(
+            new \PHPParser_Parser(
+                new \PHPParser_Lexer()
+            ),
+            $this->template[$templateId]
+        );
+        $function = $template->getStmts(array('Class' => $className));
+        $class->addStmts($function[0]->stmts);
         $realClass = $class->getNode();
         $comments = $realClass->getAttribute('comments', array());
         $index = count($comments) - 1;
@@ -74,7 +147,6 @@ class Generator
         } else {
             $doc = new \PHPParser_Comment_Doc(
                 '/**' . PHP_EOL .
-                ' * @method static ' . $className . ' create()' . PHP_EOL .
                 ' */'
             );
             $comments[] = $doc;
@@ -263,7 +335,7 @@ class Generator
             // So this could add many property of this type
             $funcName = $this->camelize($type);
 
-            return "@method $current add{$funcName}(string \$property, $realType \$v)";
+            return "@method $current add{$funcName}($realType \$v)";
         }
 
         return "@method $current add" . $this->camelize($property, '') . "(string \$property, $realType \$v)";
