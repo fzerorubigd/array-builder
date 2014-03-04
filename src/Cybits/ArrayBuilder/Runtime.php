@@ -50,12 +50,13 @@ class Runtime implements \JsonSerializable
             $key = array_shift($arguments);
             $value = array_shift($arguments);
 
-            if ($value === null) {
-                $value = $key;
-                $key = null;
-            }
+            return $this->add($key, $this->unCamelize(substr($name, 3)), $value);
+        } elseif (($sign = substr($name, 0, strlen('append'))) == 'append') {
+            $value = array_shift($arguments);
+            $key = array_shift($arguments);
+            $property = substr($name, strlen('append'));
 
-            return $this->add($this->unCamelize(substr($name, 3)), $key, $value);
+            return $this->add($key, $property, $value);
         }
 
         throw new \BadMethodCallException("Invalid function $name");
@@ -113,19 +114,26 @@ class Runtime implements \JsonSerializable
     {
         return $this->validProperties;
     }
+
     /**
      * Transforms a camelCasedString to an under_scored_one
+     *
+     * @param string $camelCase the camel case string
+     * @param string $glue      the glue, default to _
+     *
+     * @return string
      */
-    function unCamelize($cameled, $glue = '_') {
+    public function unCamelize($camelCase, $glue = '_')
+    {
         return implode(
             $glue,
             array_map(
                 'strtolower',
                 preg_split(
                     '/([A-Z]{1}[^A-Z]*)/',
-                    $cameled,
+                    $camelCase,
                     -1,
-                    PREG_SPLIT_DELIM_CAPTURE|PREG_SPLIT_NO_EMPTY
+                    PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY
                 )
             )
         );
@@ -160,27 +168,31 @@ class Runtime implements \JsonSerializable
      */
     public function add($key, $property, $value)
     {
-        if (!isset($key)) {
-            return $this->set($property, $value);
-        }
+        $any = false;
         $type = $this->internalHasProperty($property);
         if (!$type) {
-            $type = $this->internalHasProperty('_any');
+            $type = $this->internalHasProperty('_' . $this->unCamelize($property));
+            $any = true;
         }
         if ($type) {
             if ($type != 'array') {
                 throw new \BadMethodCallException("$property is not an array");
             }
 
-            if (!isset($this->data[$key])) {
-                $this->data[$key] = array();
+            if ($any) {
+                if ($key) {
+                    $this->data[$key] = $value;
+                } else {
+                    $this->data[] = $value;
+                }
+            } else {
+                if ($key) {
+                    $this->data[$property][$key] = $value;
+                } else {
+                    $this->data[$property][] = $value;
+                }
             }
 
-            if ($property === null) {
-                $this->data[$key][] = $value;
-            } else {
-                $this->data[$key][$property] = $value;
-            }
             return $this;
         }
 
@@ -213,7 +225,7 @@ class Runtime implements \JsonSerializable
     /**
      * Iterate over the internal array
      *
-     * @param array $array
+     * @param array $array iterate over array
      *
      * @return array
      */

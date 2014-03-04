@@ -141,16 +141,11 @@ EOT;
         $class->addStmts($function[0]->stmts);
         $realClass = $class->getNode();
         $comments = $realClass->getAttribute('comments', array());
-        $index = count($comments) - 1;
-        if (isset($comments[$index]) && $comments[$index] instanceof \PHPParser_Comment_Doc) {
-            $doc = & $comments[$index];
-        } else {
-            $doc = new \PHPParser_Comment_Doc(
-                '/**' . PHP_EOL .
-                ' */'
-            );
-            $comments[] = $doc;
-        }
+        $doc = new \PHPParser_Comment_Doc(
+            '/**' . PHP_EOL .
+            ' */'
+        );
+        $comments[] = $doc;
 
         $text = trim($doc->getText());
         foreach ($data as $key => $type) {
@@ -229,22 +224,6 @@ EOT;
     }
 
     /**
-     * Create valid type mapping for setting default value
-     *
-     * @param array $data data to create mapping
-     *
-     * @return array
-     */
-    private function generateValidPropertyList(array $data)
-    {
-        foreach ($data as &$value) {
-            $value = $this->translateTypeToPhpType($value);
-        }
-
-        return $data;
-    }
-
-    /**
      * get the php type
      *
      * @param string $type     the json type
@@ -282,6 +261,22 @@ EOT;
         }
 
         return $type;
+    }
+
+    /**
+     * Create valid type mapping for setting default value
+     *
+     * @param array $data data to create mapping
+     *
+     * @return array
+     */
+    private function generateValidPropertyList(array $data)
+    {
+        foreach ($data as &$value) {
+            $value = $this->translateTypeToPhpType($value);
+        }
+
+        return $data;
     }
 
     /**
@@ -331,11 +326,11 @@ EOT;
     private function getAdderMethod($property, $type, $current)
     {
         $realType = $this->translateTypeToPhpType($type, true);
-        if ($property == '_any') {
+        if ($property == '_' . $type) {
             // So this could add many property of this type
             $funcName = $this->camelize($type);
 
-            return "@method $current add{$funcName}($realType \$v)";
+            return "@method $current append{$funcName}($realType \$v, string \$key = null)";
         }
 
         return "@method $current add" . $this->camelize($property, '') . "(string \$property, $realType \$v)";
