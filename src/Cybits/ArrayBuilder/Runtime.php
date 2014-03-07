@@ -15,19 +15,24 @@ class Runtime implements \JsonSerializable
 
     /**
      * make constructor protected to force using the create method
+     *
+     * @param string $key the key for this object, only used on append to something
      */
-    protected function __construct()
+    protected function __construct($key = null)
     {
+        $this->data['_key'] = $key;
     }
 
     /**
      * Create new instance of this object
      *
+     * @param string $key the key for this object, only used on append to something
+     *
      * @return Runtime
      */
-    public static function create()
+    public static function create($key = null)
     {
-        return new self();
+        return new self($key);
     }
 
     /**
@@ -178,6 +183,11 @@ class Runtime implements \JsonSerializable
             if ($type != 'array') {
                 throw new \BadMethodCallException("$property is not an array");
             }
+            if ($key == null && $value instanceof Runtime) {
+                if ($value->internalHasProperty('_key')) {
+                    $key = $value->get('_key');
+                }
+            }
 
             if ($any) {
                 if ($key) {
@@ -237,7 +247,7 @@ class Runtime implements \JsonSerializable
                 $result[$key] = $value->toArray();
             } elseif (is_array($value)) {
                 $result[$key] = $this->iterateArray($value);
-            } else {
+            } elseif ($key{0} != '_') {
                 $result[$key] = $value;
             }
         }

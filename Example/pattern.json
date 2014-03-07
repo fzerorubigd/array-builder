@@ -3,6 +3,7 @@
         "namespace" : "Cybits\\Elasticsearch"
     },
     "field" : {
+        "_key": "_string",
         "query": "_string",
         "operator": "_string",
         "zero_terms_query": "_string",

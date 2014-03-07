@@ -104,8 +104,8 @@ class ArrayBuilderTest extends \PHPUnit_Framework_TestCase
             $match->toArray()
         );
 
-        $third = ArrayBuilder\Field::create()->setOperator('not');
-        $match->appendField($third, 'hey');
+        $third = ArrayBuilder\Field::create('hey')->setOperator('not');
+        $match->appendField($third);
 
         $this->assertEquals(
             array(
@@ -187,6 +187,7 @@ class ArrayBuilderTest extends \PHPUnit_Framework_TestCase
         "namespace" : "Cybits\\Test\\ArrayBuilder"
     },
     "field" : {
+        "_key" :"_string",
         "query": "_string",
         "operator": "_string",
         "zero_terms_query": "_string",

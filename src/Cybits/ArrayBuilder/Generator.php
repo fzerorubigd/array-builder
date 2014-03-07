@@ -43,14 +43,17 @@ class TemplateString
         return $this->validProperties;
     }
 
+
     /**
      * Create new instance of this object
      *
+     * @param string $key the key for this object, only used on append to something
+     *
      * @return __Class__
      */
-    public static function create()
+    public static function create($key = null)
     {
-        return new self();
+        return new self($key);
     }
 }
 EOT;
@@ -74,11 +77,13 @@ class TemplateString
     /**
      * Create new instance of this object
      *
+     * @param string $key the key for this object, only used on append to something
+     *
      * @return __Class__
      */
-    public static function create()
+    public static function create($key = null)
     {
-        return new self();
+        return new self($key);
     }
 }
 EOT;
